@@ -1,6 +1,23 @@
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+
 from rest_framework import serializers
 
 from ctos.models import CTO, Ocorrencia
+
+
+class CoordenadaRegistroField(serializers.DecimalField):
+    """DecimalField que arredonda a coordenada para 7 casas decimais (~1 cm)
+    antes da validação de max_digits. O GPS do celular envia precisão maior
+    (ex.: -7.06378329546781), que não cabe em numeric(10,7)."""
+
+    def to_internal_value(self, data):
+        try:
+            data = Decimal(str(data)).quantize(
+                Decimal("0.0000001"), rounding=ROUND_HALF_UP
+            )
+        except (InvalidOperation, ValueError, TypeError):
+            pass
+        return super().to_internal_value(data)
 
 
 class CTOSerializer(serializers.ModelSerializer):
@@ -17,6 +34,13 @@ class CTOSerializer(serializers.ModelSerializer):
 
 
 class OcorrenciaCreateSerializer(serializers.ModelSerializer):
+    latitude_registro = CoordenadaRegistroField(
+        max_digits=10, decimal_places=7, required=False
+    )
+    longitude_registro = CoordenadaRegistroField(
+        max_digits=10, decimal_places=7, required=False
+    )
+
     class Meta:
         model = Ocorrencia
         fields = [

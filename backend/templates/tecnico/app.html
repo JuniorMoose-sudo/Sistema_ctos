@@ -444,10 +444,11 @@ async function enviarOcorrencia(event) {
     const foto = document.getElementById('foto').files[0];
     if (foto) formData.append('foto', foto);
 
-    // GPS do momento do envio (pode divergir da CTO)
+    // GPS do momento do envio (pode divergir da CTO). Arredonda para 7 casas
+    // (precisão de ~1 cm) para caber no campo decimal(10,7) do banco.
     if (coordsAtuais) {
-        formData.append('latitude_registro', coordsAtuais.lat);
-        formData.append('longitude_registro', coordsAtuais.lon);
+        formData.append('latitude_registro', coordsAtuais.lat.toFixed(7));
+        formData.append('longitude_registro', coordsAtuais.lon.toFixed(7));
     } else {
         formData.append('latitude_registro', parseFloat(ctoSelecionada.latitude));
         formData.append('longitude_registro', parseFloat(ctoSelecionada.longitude));
