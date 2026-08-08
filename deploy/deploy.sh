@@ -43,12 +43,12 @@ fi
 sed -i "s|<IP>|$IP|g" "$ENV_FILE"
 
 echo "==> [4/8] Migrações + collectstatic"
+mkdir -p "$PROJ/backend/logs" "$PROJ/backend/media"
 cd "$PROJ/backend"
 "$VENV/bin/python" manage.py migrate --noinput
 "$VENV/bin/python" manage.py collectstatic --noinput
 
 echo "==> [5/8] Permissões (nginx + gunicorn/streamlit rodam como www-data)"
-mkdir -p "$PROJ/backend/logs" "$PROJ/backend/media"
 chown -R www-data:www-data "$PROJ"
 
 echo "==> [6/8] Nginx (sites + Basic Auth do dashboard)"
