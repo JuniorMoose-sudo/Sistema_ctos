@@ -1,8 +1,30 @@
+import io
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from pathlib import Path
 
+from django.core.files.base import ContentFile
+from PIL import Image, ImageOps
 from rest_framework import serializers
 
 from ctos.models import CTO, Ocorrencia
+
+
+def comprimir_foto(uploaded, max_lado=1280, qualidade=82):
+    """Redimensiona/compacta a foto da ocorrência para JPEG (~150-400 KB) e
+    corrige a rotação do EXIF. Recebe o arquivo enviado e devolve um
+    ContentFile .jpg pronto para o ImageField salvar."""
+    img = Image.open(uploaded)
+    img = ImageOps.exif_transpose(img)
+    img = img.convert("RGB")
+    if max(img.size) > max_lado:
+        escala = max_lado / max(img.size)
+        img = img.resize(
+            (int(img.width * escala), int(img.height * escala)), Image.LANCZOS
+        )
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=qualidade, optimize=True)
+    nome = Path(uploaded.name).stem or "foto"
+    return ContentFile(buf.getvalue(), name=f"{nome}.jpg")
 
 
 class CoordenadaRegistroField(serializers.DecimalField):
@@ -49,6 +71,8 @@ class OcorrenciaCreateSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
+        if foto := validated_data.get("foto"):
+            validated_data["foto"] = comprimir_foto(foto)
         validated_data["tecnico"] = self.context["request"].user
         return super().create(validated_data)
 
