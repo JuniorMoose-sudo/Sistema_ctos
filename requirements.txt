@@ -1,0 +1,18 @@
+Django==5.2.17
+djangorestframework==3.17.2
+psycopg2-binary==2.9.12
+python-decouple==3.8
+whitenoise==6.12.0
+python-multipart==0.0.32
+
+# Dashboard (Streamlit)
+pandas==3.0.5
+streamlit==1.61.1
+plotly==6.9.0
+requests==2.34.2
+Pillow==12.3.0
+python-dotenv==1.2.2
+
+# Servidor WSGI — Windows (dev): waitress | Linux/EC2 (produção): gunicorn
+waitress==3.0.2
+gunicorn==23.0.0

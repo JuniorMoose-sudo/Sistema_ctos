@@ -1,0 +1,527 @@
+{% extends 'tecnico/base.html' %}
+
+{% block title %}Registrar CTO - App do Técnico{% endblock %}
+
+{% block content %}
+<!-- ===================== ETAPA 1: GEOLOCALIZAÇÃO ===================== -->
+<section id="step-location">
+    <div class="text-center py-6">
+        <div class="bg-blue-100 text-blue-600 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+            <i class="fa-solid fa-location-crosshairs"></i>
+        </div>
+        <h2 class="text-xl font-bold">Localizar CTOs próximas</h2>
+        <p class="text-sm text-gray-500 mt-2">Vamos usar o GPS do seu celular para encontrar as CTOs mais próximas de você.</p>
+    </div>
+
+    <div id="gps-status" class="hidden text-center text-sm text-gray-600 mb-4 p-3 rounded-lg"></div>
+
+    <button id="btn-localizar" onclick="iniciarLocalizacao()"
+        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-base">
+        <i class="fa-solid fa-location-dot"></i> Usar minha localização
+    </button>
+
+    <div class="my-6 flex items-center gap-3 text-gray-400">
+        <div class="flex-1 h-px bg-gray-300"></div>
+        <span class="text-xs uppercase">ou</span>
+        <div class="flex-1 h-px bg-gray-300"></div>
+    </div>
+
+    <button onclick="abrirBusca()"
+        class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2">
+        <i class="fa-solid fa-magnifying-glass"></i> Buscar CTO pelo nome
+    </button>
+</section>
+
+<!-- ===================== ETAPA 2: LISTA DE CTOs PRÓXIMAS ===================== -->
+<section id="step-ctos" class="hidden">
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-bold flex items-center gap-2">
+            <i class="fa-solid fa-list text-blue-600"></i> CTOs próximas
+        </h2>
+        <button onclick="voltarLocalizacao()" class="text-blue-600 text-sm font-medium">Reiniciar</button>
+    </div>
+    <p id="distancia-info" class="text-xs text-gray-500 mb-3"></p>
+
+    <div id="lista-ctos" class="space-y-3"></div>
+
+    <button onclick="abrirBusca()"
+        class="mt-4 w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-3 rounded-xl transition">
+        <i class="fa-solid fa-magnifying-glass"></i> Não é nenhuma? Buscar pelo nome
+    </button>
+</section>
+
+<!-- ===================== ETAPA 3: CONFIRMAÇÃO ===================== -->
+<section id="step-confirmacao" class="hidden">
+    <button onclick="voltarEtapaConfirmacao()" class="text-blue-600 text-sm font-medium mb-4">
+        <i class="fa-solid fa-arrow-left"></i> Voltar
+    </button>
+    <div class="text-center py-4">
+        <div class="bg-amber-100 text-amber-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 text-3xl">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <h2 class="text-xl font-bold">Confirmação</h2>
+    </div>
+
+    <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-6">
+        <p class="text-sm text-gray-600 mb-1">Você está registrando a CTO:</p>
+        <p id="cto-nome" class="text-2xl font-bold text-blue-700 break-words"></p>
+        <div class="mt-2 flex flex-wrap gap-2 text-xs">
+            <span id="cto-bairro" class="bg-blue-100 text-blue-700 px-2 py-1 rounded-full"></span>
+            <span id="cto-distancia" class="bg-green-100 text-green-700 px-2 py-1 rounded-full"></span>
+            <span id="cto-status" class="bg-gray-200 text-gray-700 px-2 py-1 rounded-full"></span>
+        </div>
+    </div>
+
+    <div class="flex gap-3">
+        <button onclick="voltarEtapaConfirmacao()"
+            class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-3 rounded-xl transition">
+            Não, voltar
+        </button>
+        <button onclick="irParaFormulario()"
+            class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl shadow transition">
+            Sim, continuar
+        </button>
+    </div>
+</section>
+
+<!-- ===================== ETAPA 4: FORMULÁRIO DA OCORRÊNCIA ===================== -->
+<section id="step-form" class="hidden">
+    <button onclick="voltarParaLista()" class="text-blue-600 text-sm font-medium mb-4">
+        <i class="fa-solid fa-arrow-left"></i> Alterar CTO
+    </button>
+
+    <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-5">
+        <p class="text-sm font-semibold text-gray-800">CTO: <span id="form-cto-nome" class="text-blue-700"></span></p>
+        <p class="text-xs text-gray-500 mt-0.5" id="form-cto-info"></p>
+    </div>
+
+    <form id="form-ocorrencia" onsubmit="enviarOcorrencia(event)">
+        <div id="form-error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 text-sm"></div>
+
+        <!-- Situação -->
+        <fieldset class="mb-5">
+            <legend class="block text-sm font-semibold text-gray-700 mb-2">Situação da CTO <span class="text-red-500">*</span></legend>
+            <div class="grid grid-cols-2 gap-2" id="radio-situacao">
+                <label class="opcao border-2 border-gray-200 rounded-xl p-3 text-center cursor-pointer hover:border-blue-400 transition">
+                    <input type="radio" name="situacao" value="normal" class="hidden" onchange="atualizarSituacao()">
+                    <div class="text-2xl mb-1 text-green-500"><i class="fa-solid fa-circle-check"></i></div>
+                    <span class="text-xs font-medium">Normal</span>
+                </label>
+                <label class="opcao border-2 border-gray-200 rounded-xl p-3 text-center cursor-pointer hover:border-blue-400 transition">
+                    <input type="radio" name="situacao" value="proxima_lotacao" class="hidden" onchange="atualizarSituacao()">
+                    <div class="text-2xl mb-1 text-amber-500"><i class="fa-solid fa-circle-half-stroke"></i></div>
+                    <span class="text-xs font-medium">Próxima lotação</span>
+                </label>
+                <label class="opcao border-2 border-gray-200 rounded-xl p-3 text-center cursor-pointer hover:border-blue-400 transition">
+                    <input type="radio" name="situacao" value="lotada" class="hidden" onchange="atualizarSituacao()">
+                    <div class="text-2xl mb-1 text-red-500"><i class="fa-solid fa-circle-xmark"></i></div>
+                    <span class="text-xs font-medium">Lotada</span>
+                </label>
+                <label class="opcao border-2 border-gray-200 rounded-xl p-3 text-center cursor-pointer hover:border-blue-400 transition">
+                    <input type="radio" name="situacao" value="danificada" class="hidden" onchange="atualizarSituacao()">
+                    <div class="text-2xl mb-1 text-purple-500"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    <span class="text-xs font-medium">Danificada</span>
+                </label>
+            </div>
+        </fieldset>
+
+        <!-- Motivo -->
+        <div id="grupo-motivo" class="hidden mb-5">
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Motivo <span class="text-red-500">*</span></label>
+            <select id="motivo" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <option value="">Selecione o motivo...</option>
+                <option value="sem_porta_livre">Sem porta livre</option>
+                <option value="sem_splitter">Sem splitter</option>
+                <option value="porta_rompida">Porta rompida</option>
+                <option value="fibra_rompida">Fibra rompida</option>
+                <option value="caixa_quebrada">Caixa quebrada</option>
+                <option value="poste_interditado">Poste interditado</option>
+                <option value="sem_energia">Sem energia</option>
+                <option value="cto_inexistente">CTO inexistente</option>
+                <option value="cto_muito_distante">CTO muito distante</option>
+                <option value="outro">Outro</option>
+            </select>
+        </div>
+
+        <!-- Portas -->
+        <div class="grid grid-cols-2 gap-3 mb-5">
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Portas usadas</label>
+                <input type="number" id="portas_usadas" min="0" max="100" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Ex: 14">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Portas livres</label>
+                <input type="number" id="portas_livres" min="0" max="100" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Ex: 2">
+            </div>
+        </div>
+
+        <!-- Foto -->
+        <div class="mb-5">
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Foto da CTO</label>
+            <div class="flex items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-4 cursor-pointer hover:border-blue-400 transition" onclick="document.getElementById('foto').click()">
+                <div class="text-center">
+                    <i class="fa-solid fa-camera text-2xl text-gray-400 mb-1"></i>
+                    <p class="text-sm text-gray-500" id="foto-nome">Tirar foto / anexar imagem</p>
+                </div>
+            </div>
+            <input type="file" id="foto" accept="image/*" capture="environment" class="hidden" onchange="atualizarFoto(this)">
+        </div>
+
+        <!-- Observação -->
+        <div class="mb-6">
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Observação</label>
+            <textarea id="observacao" rows="3" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Alguma observação sobre a CTO..."></textarea>
+        </div>
+
+        <button type="submit" id="btn-enviar"
+            class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-base">
+            <i class="fa-solid fa-paper-plane"></i> Enviar ocorrência
+        </button>
+    </form>
+</section>
+
+<!-- ===================== ETAPA 5: SUCESSO ===================== -->
+<section id="step-sucesso" class="hidden">
+    <div class="text-center py-10">
+        <div class="bg-green-100 text-green-600 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl">
+            <i class="fa-solid fa-circle-check"></i>
+        </div>
+        <h2 class="text-xl font-bold">Ocorrência enviada!</h2>
+        <p class="text-sm text-gray-500 mt-2">Obrigado, sua informação foi registrada.</p>
+        <button onclick="resetarApp()"
+            class="mt-8 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl shadow transition">
+            Nova ocorrência
+        </button>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let coordsAtuais = null;
+let ctoSelecionada = null;
+
+const API_URL = '/api';
+
+// ===================== 1. GEOLOCALIZAÇÃO =====================
+function iniciarLocalizacao() {
+    const status = document.getElementById('gps-status');
+    const btn = document.getElementById('btn-localizar');
+
+    if (!navigator.geolocation) {
+        mostrarErro('Seu navegador não suporta geolocalização. Use a busca manual.');
+        return;
+    }
+
+    status.classList.remove('hidden');
+    status.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Obtendo sua localização...';
+    btn.disabled = true;
+    btn.classList.add('opacity-50');
+
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            coordsAtuais = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+            status.innerHTML = '<i class="fa-solid fa-circle-check text-green-500"></i> Localização obtida!';
+            buscarCTOsProximas(coordsAtuais.lat, coordsAtuais.lon);
+            btn.disabled = false;
+            btn.classList.remove('opacity-50');
+        },
+        (erro) => {
+            btn.disabled = false;
+            btn.classList.remove('opacity-50');
+            let msg = 'Não foi possível obter sua localização.';
+            if (erro.code === 1) msg = 'Permissão de localização negada. Use a busca manual.';
+            if (erro.code === 3) msg = 'Tempo esgotado ao buscar localização. Tente novamente.';
+            mostrarErro(msg);
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
+    );
+}
+
+function mostrarErro(msg) {
+    const status = document.getElementById('gps-status');
+    status.classList.remove('hidden');
+    status.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-500"></i> ' + msg;
+}
+
+async function buscarCTOsProximas(lat, lon) {
+    const lista = document.getElementById('lista-ctos');
+    lista.innerHTML = '<div class="text-center py-6 text-gray-500"><i class="fa-solid fa-spinner fa-spin text-xl"></i><p class="mt-2 text-sm">Buscando CTOs próximas...</p></div>';
+
+    try {
+        const resp = await fetch(`${API_URL}/ctos/proximas/?lat=${lat}&lon=${lon}`, {
+            headers: { 'Authorization': `Token ${localStorage.getItem('auth_token')}` }
+        });
+        if (!resp.ok) throw new Error('Erro ao buscar CTOs');
+
+        const ctos = await resp.json();
+        document.getElementById('distancia-info').textContent = `Encontradas ${ctos.length} CTOs próximas do seu ponto (${lat.toFixed(5)}, ${lon.toFixed(5)})`;
+
+        if (ctos.length === 0) {
+            lista.innerHTML = '<div class="text-center py-8 text-gray-500">Nenhuma CTO encontrada próxima.</div>';
+            return;
+        }
+
+        lista.innerHTML = '';
+        ctos.forEach((cto, idx) => {
+            const dist = formatarDistancia(cto.distancia_metros);
+            const card = document.createElement('div');
+            card.className = 'bg-white border-2 border-gray-200 hover:border-blue-500 rounded-xl p-4 cursor-pointer transition shadow-sm';
+            card.innerHTML = `
+                <div class="flex items-start justify-between gap-2">
+                    <div>
+                        <p class="font-bold text-blue-700">${idx + 1}. ${cto.nome}</p>
+                        <p class="text-xs text-gray-500 mt-0.5">${cto.bairro || 'Bairro não informado'}</p>
+                    </div>
+                    <span class="text-xs font-semibold bg-green-100 text-green-700 px-2 py-1 rounded-full whitespace-nowrap">${dist}</span>
+                </div>
+                <p class="text-xs text-gray-400 mt-1">${statusCTO(cto.status_atual)}</p>
+            `;
+            card.addEventListener('click', () => confirmarCTO(cto, dist));
+            lista.appendChild(card);
+        });
+    } catch (err) {
+        lista.innerHTML = `<div class="text-center py-8 text-red-500">${err.message}</div>`;
+    }
+}
+
+// ===================== 2. CONFIRMAÇÃO =====================
+function confirmarCTO(cto, distancia) {
+    ctoSelecionada = cto;
+    document.getElementById('cto-nome').textContent = cto.nome;
+    document.getElementById('cto-bairro').textContent = cto.bairro || 'Bairro não informado';
+    document.getElementById('cto-distancia').textContent = distancia;
+    document.getElementById('cto-status').textContent = statusCTO(cto.status_atual);
+
+    esconderTodos();
+    document.getElementById('step-confirmacao').classList.remove('hidden');
+}
+
+function voltarEtapaConfirmacao() {
+    esconderTodos();
+    document.getElementById('step-ctos').classList.remove('hidden');
+}
+
+function voltarLocalizacao() {
+    esconderTodos();
+    document.getElementById('step-location').classList.remove('hidden');
+    document.getElementById('gps-status').classList.add('hidden');
+}
+
+function voltarParaLista() {
+    if (coordsAtuais) {
+        esconderTodos();
+        document.getElementById('step-ctos').classList.remove('hidden');
+    } else {
+        voltarLocalizacao();
+    }
+}
+
+// ===================== 3. BUSCA MANUAL =====================
+function abrirBusca() {
+    const nome = prompt('Digite o nome da CTO:');
+    if (!nome) return;
+    buscarCTONome(nome);
+}
+
+async function buscarCTONome(nome) {
+    const lista = document.getElementById('lista-ctos');
+    esconderTodos();
+    document.getElementById('step-ctos').classList.remove('hidden');
+    document.getElementById('distancia-info').textContent = `Buscando "${nome}"...`;
+    lista.innerHTML = '<div class="text-center py-6 text-gray-500"><i class="fa-solid fa-spinner fa-spin"></i></div>';
+
+    try {
+        const resp = await fetch(`${API_URL}/ctos/buscar/?q=${encodeURIComponent(nome)}`, {
+            headers: { 'Authorization': `Token ${localStorage.getItem('auth_token')}` }
+        });
+        if (!resp.ok) throw new Error('Erro na busca');
+
+        const ctos = await resp.json();
+        document.getElementById('distancia-info').textContent = `${ctos.length} resultado(s) para "${nome}"`;
+
+        if (ctos.length === 0) {
+            lista.innerHTML = '<div class="text-center py-8 text-gray-500">Nenhuma CTO encontrada com esse nome.</div>';
+            return;
+        }
+
+        lista.innerHTML = '';
+        ctos.forEach(cto => {
+            const card = document.createElement('div');
+            card.className = 'bg-white border-2 border-gray-200 hover:border-blue-500 rounded-xl p-4 cursor-pointer transition shadow-sm';
+            card.innerHTML = `
+                <p class="font-bold text-blue-700">${cto.nome}</p>
+                <p class="text-xs text-gray-500 mt-0.5">${cto.bairro || 'Bairro não informado'}</p>
+                <p class="text-xs text-gray-400 mt-1">${statusCTO(cto.status_atual)}</p>
+            `;
+            card.addEventListener('click', () => confirmarCTO(cto, 'Seleção manual'));
+            lista.appendChild(card);
+        });
+    } catch (err) {
+        lista.innerHTML = `<div class="text-center py-8 text-red-500">${err.message}</div>`;
+    }
+}
+
+// ===================== 4. FORMULÁRIO =====================
+function irParaFormulario() {
+    document.getElementById('form-cto-nome').textContent = ctoSelecionada.nome;
+    document.getElementById('form-cto-info').textContent =
+        `${ctoSelecionada.bairro || 'Bairro não informado'} · ${statusCTO(ctoSelecionada.status_atual)}`;
+
+    // pré-preenche a situação atual da CTO
+    const radio = document.querySelector(`input[name="situacao"][value="${ctoSelecionada.status_atual}"]`);
+    if (radio) {
+        radio.checked = true;
+        atualizarSituacao();
+    }
+
+    esconderTodos();
+    document.getElementById('step-form').classList.remove('hidden');
+}
+
+function atualizarSituacao() {
+    const radios = document.querySelectorAll('input[name="situacao"]');
+    radios.forEach(r => {
+        const label = r.closest('label');
+        if (r.checked) {
+            label.classList.remove('border-gray-200');
+            const cores = { normal: 'border-green-500', proxima_lotacao: 'border-amber-500', lotada: 'border-red-500', danificada: 'border-purple-500' };
+            label.classList.add(cores[r.value]);
+        } else {
+            label.classList.remove('border-green-500', 'border-amber-500', 'border-red-500', 'border-purple-500');
+            label.classList.add('border-gray-200');
+        }
+    });
+
+    const motivo = document.getElementById('grupo-motivo');
+    const situacaoSelecionada = document.querySelector('input[name="situacao"]:checked');
+    if (situacaoSelecionada && situacaoSelecionada.value !== 'normal') {
+        motivo.classList.remove('hidden');
+    } else {
+        motivo.classList.add('hidden');
+    }
+}
+
+function atualizarFoto(input) {
+    const nome = document.getElementById('foto-nome');
+    if (input.files.length > 0) {
+        nome.textContent = '📷 ' + input.files[0].name;
+    } else {
+        nome.textContent = 'Tirar foto / anexar imagem';
+    }
+}
+
+// ===================== 5. ENVIO =====================
+async function enviarOcorrencia(event) {
+    event.preventDefault();
+    const errorBox = document.getElementById('form-error');
+    errorBox.classList.add('hidden');
+
+    const situacao = document.querySelector('input[name="situacao"]:checked');
+    if (!situacao) {
+        mostrarErroForm('Selecione a situação da CTO.');
+        return;
+    }
+
+    const motivo = document.getElementById('motivo').value;
+    if (situacao.value !== 'normal' && !motivo) {
+        mostrarErroForm('Selecione o motivo.');
+        return;
+    }
+
+    const btn = document.getElementById('btn-enviar');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Enviando...';
+
+    const formData = new FormData();
+    formData.append('cto', ctoSelecionada.id);
+    formData.append('situacao', situacao.value);
+    if (motivo) formData.append('motivo', motivo);
+    if (document.getElementById('portas_usadas').value) formData.append('portas_usadas', document.getElementById('portas_usadas').value);
+    if (document.getElementById('portas_livres').value) formData.append('portas_livres', document.getElementById('portas_livres').value);
+    if (document.getElementById('observacao').value) formData.append('observacao', document.getElementById('observacao').value);
+
+    const foto = document.getElementById('foto').files[0];
+    if (foto) formData.append('foto', foto);
+
+    // GPS do momento do envio (pode divergir da CTO)
+    if (coordsAtuais) {
+        formData.append('latitude_registro', coordsAtuais.lat);
+        formData.append('longitude_registro', coordsAtuais.lon);
+    } else {
+        formData.append('latitude_registro', parseFloat(ctoSelecionada.latitude));
+        formData.append('longitude_registro', parseFloat(ctoSelecionada.longitude));
+    }
+
+    try {
+        const resp = await fetch(`${API_URL}/ocorrencias/`, {
+            method: 'POST',
+            headers: { 'Authorization': `Token ${localStorage.getItem('auth_token')}` },
+            body: formData
+        });
+
+        if (!resp.ok) {
+            let msg = `Erro ao enviar ocorrência (${resp.status})`;
+            try {
+                const errData = await resp.json();
+                if (errData && typeof errData === 'object' && Object.keys(errData).length > 0) {
+                    msg = JSON.stringify(errData);
+                } else if (typeof errData === 'string' && errData) {
+                    msg = errData;
+                }
+            } catch (_) {
+                // Corpo não-JSON (ex.: página de erro 500 do Django) — mantém a msg genérica
+            }
+            throw new Error(msg);
+        }
+
+        esconderTodos();
+        document.getElementById('step-sucesso').classList.remove('hidden');
+    } catch (err) {
+        mostrarErroForm(err.message);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Enviar ocorrência';
+    }
+}
+
+function mostrarErroForm(msg) {
+    const box = document.getElementById('form-error');
+    box.textContent = msg;
+    box.classList.remove('hidden');
+}
+
+// ===================== UTILIDADES =====================
+function esconderTodos() {
+    ['step-location', 'step-ctos', 'step-confirmacao', 'step-form', 'step-sucesso'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+    });
+}
+
+function formatarDistancia(metros) {
+    if (!metros && metros !== 0) return '';
+    if (metros < 1000) return `${Math.round(metros)}m`;
+    return `${(metros / 1000).toFixed(2)}km`;
+}
+
+function statusCTO(status) {
+    const map = {
+        normal: '<span class="text-green-600">🟢 Normal</span>',
+        proxima_lotacao: '<span class="text-amber-600">🟡 Próxima da lotação</span>',
+        lotada: '<span class="text-red-600">🔴 Lotada</span>',
+        danificada: '<span class="text-purple-600">🟣 Danificada</span>'
+    };
+    return map[status] || status;
+}
+
+function resetarApp() {
+    coordsAtuais = null;
+    ctoSelecionada = null;
+    document.getElementById('form-ocorrencia').reset();
+    document.getElementById('grupo-motivo').classList.add('hidden');
+    document.getElementById('foto-nome').textContent = 'Tirar foto / anexar imagem';
+    document.getElementById('btn-enviar').innerHTML = '<i class="fa-solid fa-paper-plane"></i> Enviar ocorrência';
+    esconderTodos();
+    document.getElementById('step-location').classList.remove('hidden');
+}
+</script>
+{% endblock %}
