@@ -161,7 +161,10 @@ SECURE_REFERRER_POLICY = "same-origin"
 X_FRAME_OPTIONS = "DENY"
 
 if USE_HTTPS:
-    SECURE_SSL_REDIRECT = True
+    # O redirect HTTP→HTTPS fica por conta do Nginx (certbot). Deixamos o
+    # SECURE_SSL_REDIRECT do Django desligado para não redirecionar chamadas
+    # internas (ex.: dashboard → API via http://127.0.0.1:8000), que virariam
+    # um 301 para https://127.0.0.1:8000 e travariam (TLS contra gunicorn HTTP).
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
