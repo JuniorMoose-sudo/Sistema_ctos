@@ -205,6 +205,11 @@ let ultimaBusca = null;
 
 const API_URL = '/api';
 
+// Sem token salvo no aparelho, vai para a tela de login.
+if (!localStorage.getItem('auth_token')) {
+    window.location.href = '/tecnico/login/';
+}
+
 function pararWatch() {
     if (watchId !== null) {
         navigator.geolocation.clearWatch(watchId);
