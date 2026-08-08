@@ -200,8 +200,26 @@
 <script>
 let coordsAtuais = null;
 let ctoSelecionada = null;
+let watchId = null;
+let ultimaBusca = null;
 
 const API_URL = '/api';
+
+function pararWatch() {
+    if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+    }
+}
+
+function haversineM(lat1, lon1, lat2, lon2) {
+    const R = 6371000;
+    const rad = (x) => x * Math.PI / 180;
+    const dLat = rad(lat2 - lat1);
+    const dLon = rad(lon2 - lon1);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 // ===================== 1. GEOLOCALIZAÇÃO =====================
 function iniciarLocalizacao() {
@@ -213,28 +231,47 @@ function iniciarLocalizacao() {
         return;
     }
 
+    pararWatch();
+    ultimaBusca = null;
+
     status.classList.remove('hidden');
-    status.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Obtendo sua localização...';
+    status.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Obtendo localização (ativando o GPS de alta precisão)...';
     btn.disabled = true;
     btn.classList.add('opacity-50');
 
-    navigator.geolocation.getCurrentPosition(
+    // watchPosition recebe correções contínuas enquanto o GPS melhora o fix.
+    // A lista de CTOs é recalculada quando a precisão melhora ou o ponto muda muito.
+    watchId = navigator.geolocation.watchPosition(
         (pos) => {
-            coordsAtuais = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-            status.innerHTML = '<i class="fa-solid fa-circle-check text-green-500"></i> Localização obtida!';
-            buscarCTOsProximas(coordsAtuais.lat, coordsAtuais.lon);
-            btn.disabled = false;
-            btn.classList.remove('opacity-50');
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+            const acc = pos.coords.accuracy;
+
+            coordsAtuais = { lat, lon, accuracy: acc };
+
+            status.innerHTML = acc <= 50
+                ? `<i class="fa-solid fa-circle-check text-green-500"></i> Localização precisa (±${Math.round(acc)}m).`
+                : `<i class="fa-solid fa-circle-check text-green-500"></i> Localização obtida (±${Math.round(acc)}m). Ajustando o GPS...`;
+
+            const mudouMuito = ultimaBusca && haversineM(lat, lon, ultimaBusca.lat, ultimaBusca.lon) > 120;
+            const melhorou = ultimaBusca && acc < ultimaBusca.acc * 0.7;
+
+            if (!ultimaBusca || mudouMuito || melhorou) {
+                ultimaBusca = { lat, lon, acc };
+                buscarCTOsProximas(lat, lon, acc);
+            }
         },
         (erro) => {
             btn.disabled = false;
             btn.classList.remove('opacity-50');
+            pararWatch();
             let msg = 'Não foi possível obter sua localização.';
             if (erro.code === 1) msg = 'Permissão de localização negada. Use a busca manual.';
+            if (erro.code === 2) msg = 'GPS indisponível. Verifique se a localização do aparelho está ativada.';
             if (erro.code === 3) msg = 'Tempo esgotado ao buscar localização. Tente novamente.';
             mostrarErro(msg);
         },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
+        { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 }
     );
 }
 
@@ -244,7 +281,7 @@ function mostrarErro(msg) {
     status.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-500"></i> ' + msg;
 }
 
-async function buscarCTOsProximas(lat, lon) {
+async function buscarCTOsProximas(lat, lon, acc) {
     const lista = document.getElementById('lista-ctos');
     esconderTodos();
     document.getElementById('step-ctos').classList.remove('hidden');
@@ -257,7 +294,8 @@ async function buscarCTOsProximas(lat, lon) {
         if (!resp.ok) throw new Error('Erro ao buscar CTOs');
 
         const ctos = await resp.json();
-        document.getElementById('distancia-info').textContent = `Encontradas ${ctos.length} CTOs próximas do seu ponto (${lat.toFixed(5)}, ${lon.toFixed(5)})`;
+        const precisaoTxt = (acc !== undefined && acc != null) ? ` (precisão ±${Math.round(acc)}m)` : '';
+        document.getElementById('distancia-info').textContent = `Encontradas ${ctos.length} CTOs próximas do seu ponto${precisaoTxt}`;
 
         if (ctos.length === 0) {
             lista.innerHTML = '<div class="text-center py-8 text-gray-500">Nenhuma CTO encontrada próxima.</div>';
@@ -305,6 +343,10 @@ function voltarEtapaConfirmacao() {
 }
 
 function voltarLocalizacao() {
+    pararWatch();
+    const btn = document.getElementById('btn-localizar');
+    btn.disabled = false;
+    btn.classList.remove('opacity-50');
     esconderTodos();
     document.getElementById('step-location').classList.remove('hidden');
     document.getElementById('gps-status').classList.add('hidden');
@@ -479,6 +521,7 @@ async function enviarOcorrencia(event) {
         }
 
         esconderTodos();
+        pararWatch();
         document.getElementById('step-sucesso').classList.remove('hidden');
     } catch (err) {
         mostrarErroForm(err.message);
@@ -517,6 +560,8 @@ function statusCTO(status) {
 }
 
 function resetarApp() {
+    pararWatch();
+    ultimaBusca = null;
     coordsAtuais = null;
     ctoSelecionada = null;
     document.getElementById('form-ocorrencia').reset();
