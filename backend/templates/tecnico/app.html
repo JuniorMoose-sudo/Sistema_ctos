@@ -246,6 +246,8 @@ function mostrarErro(msg) {
 
 async function buscarCTOsProximas(lat, lon) {
     const lista = document.getElementById('lista-ctos');
+    esconderTodos();
+    document.getElementById('step-ctos').classList.remove('hidden');
     lista.innerHTML = '<div class="text-center py-6 text-gray-500"><i class="fa-solid fa-spinner fa-spin text-xl"></i><p class="mt-2 text-sm">Buscando CTOs próximas...</p></div>';
 
     try {
