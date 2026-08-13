@@ -8,6 +8,7 @@ na tabela CTO por nome.
 
 Uso:
     python manage.py importar_kmz /caminho/para/Campina_Grande_-_PB_5743.kmz
+    python manage.py importar_kmz /caminho/para/Guarabira-PB.kmz --cidade "Guarabira"
 
 Notas importantes:
 - Nominatim exige um User-Agent identificável (política deles) e rate limit
@@ -42,10 +43,17 @@ class Command(BaseCommand):
             action="store_true",
             help="Importa só nome/lat/long, pulando a chamada ao Nominatim (útil para teste rápido).",
         )
+        parser.add_argument(
+            "--cidade",
+            type=str,
+            default=None,
+            help="Cidade das CTOs importadas (ex.: 'João Pessoa', 'Guarabira').",
+        )
 
     def handle(self, *args, **options):
         caminho_kmz = options["caminho_kmz"]
         pular_geo = options["sem_geocodificacao"]
+        cidade = options["cidade"]
 
         placemarks = self._extrair_placemarks(caminho_kmz)
         total = len(placemarks)
@@ -69,7 +77,7 @@ class Command(BaseCommand):
 
             _, criado = CTO.objects.update_or_create(
                 nome=nome,
-                defaults={"latitude": lat, "longitude": lon, "bairro": bairro},
+                defaults={"latitude": lat, "longitude": lon, "bairro": bairro, "cidade": cidade},
             )
             criadas += int(criado)
             atualizadas += int(not criado)
