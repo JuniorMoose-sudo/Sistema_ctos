@@ -63,7 +63,7 @@ class Command(BaseCommand):
         criadas, atualizadas, falhas_geo = 0, 0, 0
 
         for i, (nome, lat, lon) in enumerate(placemarks, start=1):
-            bairro = None
+            defaults = {"latitude": lat, "longitude": lon, "cidade": cidade}
             if not pular_geo:
                 chave_cache = (round(lat, 4), round(lon, 4))
                 if chave_cache in cache_bairro:
@@ -74,10 +74,12 @@ class Command(BaseCommand):
                     if bairro is None:
                         falhas_geo += 1
                     time.sleep(1)  # respeita o rate limit do Nominatim (1 req/s)
+                if bairro is not None:
+                    defaults["bairro"] = bairro  # falha de geo não apaga bairro já cadastrado
 
             _, criado = CTO.objects.update_or_create(
                 nome=nome,
-                defaults={"latitude": lat, "longitude": lon, "bairro": bairro, "cidade": cidade},
+                defaults=defaults,
             )
             criadas += int(criado)
             atualizadas += int(not criado)
@@ -116,22 +118,31 @@ class Command(BaseCommand):
         return resultados
 
     def _geocodificar(self, lat, lon):
-        try:
-            resp = requests.get(
-                NOMINATIM_URL,
-                params={"lat": lat, "lon": lon, "format": "jsonv2", "zoom": 16},
-                headers={"User-Agent": settings.NOMINATIM_USER_AGENT},
-                timeout=10,
-            )
-            resp.raise_for_status()
-            dados = resp.json()
-            endereco = dados.get("address", {})
-            # Nominatim varia o campo dependendo da região: tenta os mais comuns.
-            return (
-                endereco.get("suburb")
-                or endereco.get("neighbourhood")
-                or endereco.get("quarter")
-                or endereco.get("city_district")
-            )
-        except (requests.RequestException, ValueError):
-            return None
+        # Retenta com backoff exponencial quando o Nominatim devolve 429
+        # (rate limit). Só desiste (None) depois de várias tentativas.
+        for tentativa in range(5):
+            try:
+                resp = requests.get(
+                    NOMINATIM_URL,
+                    params={"lat": lat, "lon": lon, "format": "jsonv2", "zoom": 16},
+                    headers={"User-Agent": settings.NOMINATIM_USER_AGENT},
+                    timeout=10,
+                )
+                if resp.status_code == 429:
+                    espera = 10 * (tentativa + 1)
+                    self.stdout.write(f"    429 (rate limit): aguardando {espera}s e retentando...")
+                    time.sleep(espera)
+                    continue
+                resp.raise_for_status()
+                dados = resp.json()
+                endereco = dados.get("address", {})
+                # Nominatim varia o campo dependendo da região: tenta os mais comuns.
+                return (
+                    endereco.get("suburb")
+                    or endereco.get("neighbourhood")
+                    or endereco.get("quarter")
+                    or endereco.get("city_district")
+                )
+            except (requests.RequestException, ValueError):
+                return None
+        return None
