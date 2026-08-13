@@ -49,13 +49,20 @@ class Command(BaseCommand):
             default=None,
             help="Cidade das CTOs importadas (ex.: 'João Pessoa', 'Guarabira').",
         )
+        parser.add_argument(
+            "--pasta",
+            type=str,
+            default=None,
+            help="Importa só os placemarks da pasta com esse nome (substring, ex.: 'Cabedelo').",
+        )
 
     def handle(self, *args, **options):
         caminho_kmz = options["caminho_kmz"]
         pular_geo = options["sem_geocodificacao"]
         cidade = options["cidade"]
+        pasta = options["pasta"]
 
-        placemarks = self._extrair_placemarks(caminho_kmz)
+        placemarks = self._extrair_placemarks(caminho_kmz, pasta)
         total = len(placemarks)
         self.stdout.write(f"{total} CTOs encontradas no KMZ.")
 
@@ -92,7 +99,7 @@ class Command(BaseCommand):
             f"{falhas_geo} sem bairro (geocodificação falhou -- ok, não é bloqueante)."
         ))
 
-    def _extrair_placemarks(self, caminho_kmz):
+    def _extrair_placemarks(self, caminho_kmz, pasta=None):
         try:
             with zipfile.ZipFile(caminho_kmz) as z:
                 with z.open("doc.kml") as f:
@@ -101,21 +108,40 @@ class Command(BaseCommand):
             raise CommandError(f"Não foi possível abrir o KMZ: {exc}")
 
         resultados = []
-        for placemark in tree.getroot().iter("{http://www.opengis.net/kml/2.2}Placemark"):
-            nome_el = placemark.find("kml:name", KML_NAMESPACE)
-            coords_el = placemark.find(".//kml:coordinates", KML_NAMESPACE)
-            if nome_el is None or coords_el is None or not coords_el.text:
-                continue
+        raiz = tree.getroot()
+        KML_NS = "{" + next(iter(KML_NAMESPACE.values())) + "}"
+        for doc in raiz.iter(KML_NS + "Document"):
+            for folder in doc.findall(KML_NS + "Folder"):
+                nome_pasta = folder.findtext(KML_NS + "name", "") or ""
+                if pasta and pasta.lower() not in nome_pasta.lower():
+                    continue
+                for placemark in folder.findall(".//" + KML_NS + "Placemark"):
+                    item = self._placemark_para_item(placemark)
+                    if item:
+                        resultados.append(item)
 
-            nome = nome_el.text.strip()
-            # KML: "longitude,latitude,altitude"
-            partes = coords_el.text.strip().split(",")
-            if len(partes) < 2:
-                continue
-            longitude, latitude = float(partes[0]), float(partes[1])
-            resultados.append((nome, latitude, longitude))
+        # Cobre KMZs sem pastas (placemarks soltos no Document) e, quando não
+        # há filtro de pasta, garante que nada fique de fora.
+        if not pasta:
+            for placemark in raiz.iter(KML_NS + "Placemark"):
+                item = self._placemark_para_item(placemark)
+                if item and item not in resultados:
+                    resultados.append(item)
 
         return resultados
+
+    def _placemark_para_item(self, placemark):
+        nome_el = placemark.find("kml:name", KML_NAMESPACE)
+        coords_el = placemark.find(".//kml:coordinates", KML_NAMESPACE)
+        if nome_el is None or coords_el is None or not coords_el.text:
+            return None
+        nome = nome_el.text.strip()
+        # KML: "longitude,latitude,altitude"
+        partes = coords_el.text.strip().split(",")
+        if len(partes) < 2:
+            return None
+        longitude, latitude = float(partes[0]), float(partes[1])
+        return (nome, latitude, longitude)
 
     def _geocodificar(self, lat, lon):
         # Retenta com backoff exponencial quando o Nominatim devolve 429
