@@ -321,6 +321,7 @@ async function buscarCTOsProximas(lat, lon, acc) {
                     <span class="text-xs font-semibold bg-green-100 text-green-700 px-2 py-1 rounded-full whitespace-nowrap">${dist}</span>
                 </div>
                 <p class="text-xs text-gray-400 mt-1">${statusCTO(cto.status_atual)}</p>
+                ${coordsCTO(cto)}
             `;
             card.addEventListener('click', () => confirmarCTO(cto, dist));
             lista.appendChild(card);
@@ -402,6 +403,7 @@ async function buscarCTONome(nome) {
                 <p class="font-bold text-blue-700">${cto.nome}</p>
                 <p class="text-xs text-gray-500 mt-0.5">${cto.bairro || 'Bairro não informado'}</p>
                 <p class="text-xs text-gray-400 mt-1">${statusCTO(cto.status_atual)}</p>
+                ${coordsCTO(cto)}
             `;
             card.addEventListener('click', () => confirmarCTO(cto, 'Seleção manual'));
             lista.appendChild(card);
@@ -552,6 +554,13 @@ function formatarDistancia(metros) {
     if (!metros && metros !== 0) return '';
     if (metros < 1000) return `${Math.round(metros)}m`;
     return `${(metros / 1000).toFixed(2)}km`;
+}
+
+function coordsCTO(cto) {
+    if (cto.latitude == null || cto.longitude == null) return '';
+    const lat = parseFloat(cto.latitude);
+    const lon = parseFloat(cto.longitude);
+    return `<p class="text-xs text-gray-400 mt-1"><i class="fa-solid fa-location-dot"></i> Lat ${lat.toFixed(6)} · Long ${lon.toFixed(6)}</p>`;
 }
 
 function statusCTO(status) {
