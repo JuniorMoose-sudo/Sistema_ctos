@@ -48,6 +48,65 @@
         class="mt-4 w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-3 rounded-xl transition">
         <i class="fa-solid fa-magnifying-glass"></i> Não é nenhuma? Buscar pelo nome
     </button>
+    <button onclick="abrirNovaCTO()"
+        class="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition">
+        <i class="fa-solid fa-plus"></i> Cadastrar CTO nova
+    </button>
+</section>
+
+<!-- ===================== ETAPA: CADASTRO MANUAL DE CTO ===================== -->
+<section id="step-nova-cto" class="hidden">
+    <button onclick="voltarDeNovaCTO()" class="text-blue-600 text-sm font-medium mb-4">
+        <i class="fa-solid fa-arrow-left"></i> Voltar
+    </button>
+    <div class="text-center py-3">
+        <div class="bg-green-100 text-green-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 text-3xl">
+            <i class="fa-solid fa-plus"></i>
+        </div>
+        <h2 class="text-xl font-bold">Cadastrar CTO nova</h2>
+        <p class="text-sm text-gray-500 mt-1">Para CTOs recém-instaladas que ainda não estão no banco.</p>
+    </div>
+
+    <div id="nova-cto-error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 text-sm"></div>
+
+    <form id="form-nova-cto" onsubmit="criarCTO(event)">
+        <div class="mb-4">
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Nome da CTO <span class="text-red-500">*</span></label>
+            <input type="text" id="nova-nome" required class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Ex: CGE-NOVO-CT1">
+        </div>
+        <div class="mb-4">
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Bairro</label>
+            <input type="text" id="nova-bairro" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Ex: Centro">
+        </div>
+        <div class="mb-4">
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Cidade</label>
+            <input type="text" id="nova-cidade" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Ex: Campina Grande">
+        </div>
+        <div class="mb-4">
+            <div class="flex items-center justify-between mb-2">
+                <label class="block text-sm font-semibold text-gray-700">Localização (GPS) <span class="text-red-500">*</span></label>
+                <button type="button" onclick="usarLocalizacaoNovaCTO()" class="text-blue-600 text-sm font-medium">
+                    <i class="fa-solid fa-location-crosshairs"></i> Usar minha localização
+                </button>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Latitude</label>
+                    <input type="number" step="any" id="nova-lat" required class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Longitude</label>
+                    <input type="number" step="any" id="nova-lon" required class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+            </div>
+            <p id="nova-gps-status" class="text-xs text-gray-400 mt-1"></p>
+        </div>
+
+        <button type="submit" id="btn-salvar-cto"
+            class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-base">
+            <i class="fa-solid fa-check"></i> Salvar e continuar
+        </button>
+    </form>
 </section>
 
 <!-- ===================== ETAPA 3: CONFIRMAÇÃO ===================== -->
@@ -303,7 +362,11 @@ async function buscarCTOsProximas(lat, lon, acc) {
         document.getElementById('distancia-info').textContent = `Encontradas ${ctos.length} CTOs próximas do seu ponto${precisaoTxt}`;
 
         if (ctos.length === 0) {
-            lista.innerHTML = '<div class="text-center py-8 text-gray-500">Nenhuma CTO encontrada próxima.</div>';
+            lista.innerHTML = `
+                <div class="text-center py-6 text-gray-500">Nenhuma CTO encontrada próxima.</div>
+                <button onclick="abrirNovaCTO()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-plus"></i> Cadastrar CTO nova
+                </button>`;
             return;
         }
 
@@ -367,6 +430,107 @@ function voltarParaLista() {
     }
 }
 
+// ===================== CADASTRO MANUAL DE CTO NOVA =====================
+function abrirNovaCTO() {
+    document.getElementById('form-nova-cto').reset();
+    document.getElementById('nova-cto-error').classList.add('hidden');
+    const status = document.getElementById('nova-gps-status');
+
+    if (coordsAtuais) {
+        document.getElementById('nova-lat').value = coordsAtuais.lat.toFixed(7);
+        document.getElementById('nova-lon').value = coordsAtuais.lon.toFixed(7);
+        status.innerHTML = '<i class="fa-solid fa-circle-check text-green-500"></i> Coordenadas preenchidas com o GPS.';
+    } else {
+        document.getElementById('nova-lat').value = '';
+        document.getElementById('nova-lon').value = '';
+        status.innerHTML = 'Toque em "Usar minha localização" para preencher as coordenadas.';
+    }
+
+    esconderTodos();
+    document.getElementById('step-nova-cto').classList.remove('hidden');
+}
+
+function voltarDeNovaCTO() {
+    esconderTodos();
+    if (coordsAtuais) {
+        document.getElementById('step-ctos').classList.remove('hidden');
+    } else {
+        document.getElementById('step-location').classList.remove('hidden');
+    }
+}
+
+function usarLocalizacaoNovaCTO() {
+    const status = document.getElementById('nova-gps-status');
+    if (!navigator.geolocation) {
+        status.innerHTML = '<span class="text-red-500">Geolocalização indisponível neste aparelho.</span>';
+        return;
+    }
+    status.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Obtendo localização...';
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+            coordsAtuais = { lat, lon, accuracy: pos.coords.accuracy };
+            document.getElementById('nova-lat').value = lat.toFixed(7);
+            document.getElementById('nova-lon').value = lon.toFixed(7);
+            status.innerHTML = `<i class="fa-solid fa-circle-check text-green-500"></i> Coordenadas obtidas (±${Math.round(pos.coords.accuracy)}m).`;
+        },
+        () => { status.innerHTML = '<span class="text-red-500">Não foi possível obter a localização. Preencha manualmente.</span>'; },
+        { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 }
+    );
+}
+
+async function criarCTO(event) {
+    event.preventDefault();
+    const errorBox = document.getElementById('nova-cto-error');
+    errorBox.classList.add('hidden');
+
+    const payload = {
+        nome: document.getElementById('nova-nome').value.trim(),
+        latitude: document.getElementById('nova-lat').value,
+        longitude: document.getElementById('nova-lon').value,
+    };
+    const bairro = document.getElementById('nova-bairro').value.trim();
+    const cidade = document.getElementById('nova-cidade').value.trim();
+    if (bairro) payload.bairro = bairro;
+    if (cidade) payload.cidade = cidade;
+
+    const btn = document.getElementById('btn-salvar-cto');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Salvando...';
+
+    try {
+        const resp = await fetch(`${API_URL}/ctos/`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Token ${localStorage.getItem('auth_token')}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await resp.json();
+        if (!resp.ok) {
+            let msg = `Erro ao cadastrar CTO (${resp.status})`;
+            if (data && typeof data === 'object') {
+                const detalhes = Object.entries(data)
+                    .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
+                    .join(' | ');
+                if (detalhes) msg = detalhes;
+            }
+            throw new Error(msg);
+        }
+
+        ctoSelecionada = data;
+        irParaFormulario();
+    } catch (err) {
+        errorBox.textContent = err.message;
+        errorBox.classList.remove('hidden');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> Salvar e continuar';
+    }
+}
+
 // ===================== 3. BUSCA MANUAL =====================
 function abrirBusca() {
     const nome = prompt('Digite o nome da CTO:');
@@ -391,7 +555,11 @@ async function buscarCTONome(nome) {
         document.getElementById('distancia-info').textContent = `${ctos.length} resultado(s) para "${nome}"`;
 
         if (ctos.length === 0) {
-            lista.innerHTML = '<div class="text-center py-8 text-gray-500">Nenhuma CTO encontrada com esse nome.</div>';
+            lista.innerHTML = `
+                <div class="text-center py-6 text-gray-500">Nenhuma CTO encontrada com esse nome.</div>
+                <button onclick="abrirNovaCTO()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-plus"></i> Cadastrar CTO nova
+                </button>`;
             return;
         }
 
@@ -545,7 +713,7 @@ function mostrarErroForm(msg) {
 
 // ===================== UTILIDADES =====================
 function esconderTodos() {
-    ['step-location', 'step-ctos', 'step-confirmacao', 'step-form', 'step-sucesso'].forEach(id => {
+    ['step-location', 'step-ctos', 'step-confirmacao', 'step-form', 'step-sucesso', 'step-nova-cto'].forEach(id => {
         document.getElementById(id).classList.add('hidden');
     });
 }

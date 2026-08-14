@@ -10,7 +10,12 @@ from rest_framework.views import APIView
 
 from ctos.models import CTO, Ocorrencia
 
-from .serializers import CTOSerializer, OcorrenciaCreateSerializer, OcorrenciaListSerializer
+from .serializers import (
+    CTOCriarSerializer,
+    CTOSerializer,
+    OcorrenciaCreateSerializer,
+    OcorrenciaListSerializer,
+)
 
 RAIO_TERRA_METROS = 6371000
 
@@ -110,16 +115,22 @@ class CTOsBuscarView(generics.ListAPIView):
         return CTO.objects.filter(ativa=True, nome__icontains=termo)[:20]
 
 
-class CTOListView(generics.ListAPIView):
+class CTOListView(generics.ListCreateAPIView):
     """
-    GET /api/ctos/
-    Visão consolidada para o gestor: todas as CTOs com o status_atual
-    (espelho da última ocorrência) e a data da última ocorrência.
+    GET  /api/ctos/
+         Visão consolidada para o gestor: todas as CTOs com o status_atual
+         (espelho da última ocorrência) e a data da última ocorrência.
 
-    Filtros: ?bairro=&status=&q=
+         Filtros: ?bairro=&status=&q=
+
+    POST /api/ctos/
+         Cadastro manual de CTO nova pelo app do técnico (sem depender do KMZ).
     """
 
     serializer_class = CTOSerializer
+
+    def get_serializer_class(self):
+        return CTOCriarSerializer if self.request.method == "POST" else CTOSerializer
 
     def get_queryset(self):
         ultima_ocorrencia = (

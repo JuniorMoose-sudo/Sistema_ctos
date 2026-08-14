@@ -55,6 +55,24 @@ class CTOSerializer(serializers.ModelSerializer):
         ]
 
 
+class CTOCriarSerializer(serializers.ModelSerializer):
+    """Cadastro manual de CTO nova (app do técnico, sem depender do KMZ).
+
+    O nome é validado contra a constraint unique do banco (rejeita duplicata).
+    latitude/longitude são arredondadas para 7 casas decimais, igual ao GPS.
+    """
+
+    latitude = CoordenadaRegistroField(max_digits=10, decimal_places=7)
+    longitude = CoordenadaRegistroField(max_digits=10, decimal_places=7)
+
+    class Meta:
+        model = CTO
+        fields = [
+            "id", "nome", "latitude", "longitude", "bairro", "cidade", "status_atual",
+        ]
+        read_only_fields = ["id", "status_atual"]
+
+
 class OcorrenciaCreateSerializer(serializers.ModelSerializer):
     latitude_registro = CoordenadaRegistroField(
         max_digits=10, decimal_places=7, required=False
