@@ -19,7 +19,9 @@ Notas importantes:
 - KML usa a ordem longitude,latitude nas coordinates -- atenção pra não
   inverter.
 """
+import re
 import time
+import unicodedata
 import zipfile
 from xml.etree import ElementTree as ET
 
@@ -53,7 +55,7 @@ class Command(BaseCommand):
             "--pasta",
             type=str,
             default=None,
-            help="Importa só os placemarks da pasta com esse nome (substring, ex.: 'Cabedelo').",
+            help="Importa só os placemarks da pasta do município exato (ex.: 'Areia' casa com 'Areia - PB (297)', não com 'Areial - PB (179)').",
         )
 
     def handle(self, *args, **options):
@@ -113,7 +115,7 @@ class Command(BaseCommand):
         for doc in raiz.iter(KML_NS + "Document"):
             for folder in doc.findall(KML_NS + "Folder"):
                 nome_pasta = folder.findtext(KML_NS + "name", "") or ""
-                if pasta and pasta.lower() not in nome_pasta.lower():
+                if pasta and not self._pasta_corresponde(pasta, nome_pasta):
                     continue
                 for placemark in folder.findall(".//" + KML_NS + "Placemark"):
                     item = self._placemark_para_item(placemark)
@@ -129,6 +131,22 @@ class Command(BaseCommand):
                     resultados.append(item)
 
         return resultados
+
+    @staticmethod
+    def _normalizar(texto):
+        """Remove acentos, caixa baixa e espaços nas bordas (ex.: 'Remígio' -> 'remigio')."""
+        texto = unicodedata.normalize("NFD", texto)
+        return "".join(c for c in texto if not unicodedata.combining(c)).strip().lower()
+
+    def _pasta_corresponde(self, pasta, nome_pasta):
+        """True se `pasta` for o município exato do folder (não substring).
+
+        Ex.: "Areia" casa com "Areia - PB (297)" mas NÃO com "Areial - PB (179)".
+        Aceita com ou sem acento e com ou sem o sufixo "- UF (N)".
+        """
+        alvo = self._normalizar(pasta)
+        mun = re.sub(r"\s*-\s*[A-Z]{2}\s*\(\d+\)\s*$", "", nome_pasta).strip()
+        return alvo in (self._normalizar(nome_pasta), self._normalizar(mun))
 
     def _placemark_para_item(self, placemark):
         nome_el = placemark.find("kml:name", KML_NAMESPACE)
