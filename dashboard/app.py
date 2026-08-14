@@ -278,6 +278,9 @@ except requests.RequestException as e:
 
 if not df_ocorr.empty:
     df_ocorr["criado_em"] = pd.to_datetime(df_ocorr["criado_em"], errors="coerce", utc=True)
+    df_ocorr["data_hora_formatada"] = (
+        df_ocorr["criado_em"].dt.tz_convert("America/Recife").dt.strftime("%d/%m/%Y %H:%M:%S")
+    )
     df_ocorr["periodo"] = (
         df_ocorr["criado_em"]
         .dt.tz_convert("America/Recife")
@@ -305,7 +308,7 @@ if not df_ocorr.empty:
         st.plotly_chart(fig_evol, width="stretch")
 
     st.subheader("Ocorrências")
-    cols_tabela = [c for c in ["nome_cto", "bairro", "situacao", "motivo", "portas_usadas", "portas_livres", "tecnico_username", "observacao", "criado_em"] if c in df_ocorr.columns]
+    cols_tabela = [c for c in ["nome_cto", "bairro", "situacao", "motivo", "portas_usadas", "portas_livres", "tecnico_username", "observacao", "data_hora_formatada"] if c in df_ocorr.columns]
     st.dataframe(df_ocorr[cols_tabela], width="stretch")
 
     # ===================== EXPORTAÇÃO CSV =====================
@@ -315,14 +318,11 @@ if not df_ocorr.empty:
         "portas_usadas", "portas_livres", "tecnico", "data_hora_registro", "observacao",
         "latitude_registro", "longitude_registro",
     ]
-    df_export = df_ocorr[["nome_cto", "bairro", "situacao", "motivo", "portas_usadas", "portas_livres", "tecnico_username", "observacao", "criado_em", "latitude_registro", "longitude_registro"]].copy()
-    # Junta lat/lon e cidade da CTO (obrigatório na exportação)
-    lat_lon = df_ctos[["nome", "latitude", "longitude", "cidade"]].rename(columns={"nome": "nome_cto"})
-    df_export = df_export.merge(lat_lon, on="nome_cto", how="left")
+    df_export = df_ocorr[["nome_cto", "bairro", "cidade", "latitude", "longitude", "situacao", "motivo", "portas_usadas", "portas_livres", "tecnico_username", "observacao", "data_hora_formatada", "latitude_registro", "longitude_registro"]].copy()
     df_export = df_export.rename(
         columns={
             "tecnico_username": "tecnico",
-            "criado_em": "data_hora_registro",
+            "data_hora_formatada": "data_hora_registro",
         }
     )
     df_export = df_export[[c for c in colunas_exportacao if c in df_export.columns]]

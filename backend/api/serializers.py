@@ -80,12 +80,19 @@ class OcorrenciaCreateSerializer(serializers.ModelSerializer):
 class OcorrenciaListSerializer(serializers.ModelSerializer):
     nome_cto = serializers.CharField(source="cto.nome", read_only=True)
     bairro = serializers.CharField(source="cto.bairro", read_only=True)
+    cidade = serializers.CharField(source="cto.cidade", read_only=True, allow_null=True)
+    latitude = serializers.DecimalField(
+        source="cto.latitude", max_digits=10, decimal_places=7, read_only=True
+    )
+    longitude = serializers.DecimalField(
+        source="cto.longitude", max_digits=10, decimal_places=7, read_only=True
+    )
     tecnico_username = serializers.CharField(source="tecnico.username", read_only=True)
 
     class Meta:
         model = Ocorrencia
         fields = [
-            "id", "nome_cto", "bairro", "situacao", "motivo",
+            "id", "nome_cto", "bairro", "cidade", "latitude", "longitude", "situacao", "motivo",
             "portas_usadas", "portas_livres", "tecnico_username",
             "observacao", "latitude_registro", "longitude_registro", "criado_em",
         ]
